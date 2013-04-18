@@ -229,12 +229,4 @@ class FtpSyncTest < Test::Unit::TestCase
     assert !File.exist?(File.join(Net::FTP.ftp_dst, 'dirB', 'fileB'))
     assert File.exist?(File.join(Net::FTP.ftp_dst, 'fileC'))
   end
-    
-  protected
-    def create_tmpname
-      tmpname = ''
-      char_list = ("a".."z").to_a + ("0".."9").to_a
-			1.upto(20) { |i| tmpname << char_list[rand(char_list.size)] }
-			return tmpname
-    end
 end
