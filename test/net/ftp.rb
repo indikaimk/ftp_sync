@@ -49,6 +49,7 @@ module Net
     
     def initialize(server)
       raise SocketError unless server == 'test.server'
+      @closed = true
     end
     
     def inspect
@@ -57,6 +58,7 @@ module Net
     
     def login(user, pass)
       raise Net::FTPPermError unless user == 'user' && pass == 'pass'
+      @closed = false
     end
     
     def get(src, dst)
@@ -102,7 +104,9 @@ module Net
       File.unlink(dst_path(file))
     end
     
-    def close; end
+    def close
+      @closed = true
+    end
     
     def passive
       @passive ||= false
@@ -110,6 +114,10 @@ module Net
     
     def passive=(val)
       @passive = val
+    end
+    
+    def closed?
+      @closed
     end
 
     private

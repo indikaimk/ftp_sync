@@ -1,15 +1,4 @@
-test_path = File.expand_path(File.dirname(__FILE__))
-lib_path = File.join(File.expand_path(File.dirname(__FILE__)), '..', 'lib')
-
-$:.unshift test_path unless $:.include?(test_path)
-$:.unshift lib_path unless $:.include?(lib_path)
-
-require 'rubygems'
-require 'test/unit'
-require 'net/ftp'
-require 'ftp_sync'
-require 'tmpdir'
-require 'fileutils'
+require_relative 'test_helper'
 
 class Ignore
   def ignore?(p); p == 'ignore' ? true : false; end
@@ -18,17 +7,12 @@ end
 class FtpSyncTest < Test::Unit::TestCase
   
   def setup
-    Net::FTP.create_ftp_src
-    Net::FTP.listing_overrides = {}
-    @local = File.join Dir.tmpdir, create_tmpname
-    FileUtils.mkdir_p @local
+    setup_helper
     @ftp = FtpSync.new('test.server', 'user', 'pass')
   end
   
   def teardown
-    FileUtils.rm_rf @local
-    FileUtils.rm_rf Net::FTP.ftp_src
-    FileUtils.rm_rf Net::FTP.ftp_dst if File.exist?(Net::FTP.ftp_dst)
+    teardown_helper
   end
   
   def test_can_initialize_with_params
@@ -36,11 +20,15 @@ class FtpSyncTest < Test::Unit::TestCase
     assert_equal 'user', @ftp.user
     assert_equal 'pass', @ftp.password
   end
+  
+  def test_connection_is_set_to_ftp_by_default
+    assert @ftp.connection.instance_of?(Net::FTP), "@ftp.connection must be an instance of Net::FTP"
+  end
 
-  def test_can_initialize_with_params_and_options
-    assert_equal false, @ftp.passive
+  def test_can_initialize_with_params_and_passive_mode_option
+    assert_equal false, @ftp.connection.passive
     @ftp = FtpSync.new('test.server', 'user', 'pass', :passive => true)
-    assert_equal true, @ftp.passive
+    assert_equal true, @ftp.connection.passive
   end
   
   def test_can_set_verbose
@@ -52,13 +40,13 @@ class FtpSyncTest < Test::Unit::TestCase
 
   def test_can_set_passive
     @ftp.passive = true
-    assert_equal true, @ftp.passive
+    assert_equal true, @ftp.connection.passive
     @ftp.passive = false
-    assert_equal false, @ftp.passive  
+    assert_equal false, @ftp.connection.passive  
   end
   
   def test_setting_an_ignore_object    
-    ftp = FtpSync.new('localhost', 'user', 'pass', { :ignore => Ignore.new })
+    ftp = FtpSync.new('test.server', 'user', 'pass', { :ignore => Ignore.new })
     assert ftp.should_ignore?('ignore')
     assert !ftp.should_ignore?('something')
   end  

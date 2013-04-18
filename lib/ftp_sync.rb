@@ -9,7 +9,7 @@ require 'fileutils'
 # newer than that timestamp, or only download files newer than their local copy.
 class FtpSync
   
-  attr_accessor :verbose, :server, :user, :password, :passive
+  attr_accessor :verbose, :server, :user, :password, :connection
   
   # Creates a new instance for accessing a ftp server 
   # requires +server+, +user+, and +password+ options
@@ -19,11 +19,12 @@ class FtpSync
     @server = server
     @user = user
     @password = password
-    @connection = nil
+    @connection = options[:connection] || Net::FTP.new(@server)
+    if options[:passive] then @connection.passive = options[:passive] end
     @ignore = options[:ignore]
     @recursion_level = 0
     @verbose = options[:verbose] || false
-    @passive = options[:passive] || false
+    connect!
   end
   
   # Recursively pull down files
@@ -33,7 +34,7 @@ class FtpSync
   # If a block is supplied then it will be called to remove a local file
   
   def pull_dir(localpath, remotepath, options = {}, &block)
-    connect! unless @connection
+    if @connection.closed? then connect! end
     @recursion_level += 1
 
     todelete = Dir.glob(File.join(localpath, '*'))
@@ -99,7 +100,7 @@ class FtpSync
   
   # Recursively push a local directory of files onto an FTP server
   def push_dir(localpath, remotepath)
-    connect!
+    if @connection.closed? then connect! end
     
     Dir.glob(File.join(localpath, '**', '*')) do |f|
       f.gsub!("#{localpath}/", '')
@@ -120,7 +121,7 @@ class FtpSync
   
   # Pull a supplied list of files from the remote ftp path into the local path
   def pull_files(localpath, remotepath, filelist)
-    connect!
+    if @connection.closed? then connect! end
     filelist.each do |f|
       localdir = File.join(localpath, File.dirname(f))
       FileUtils.mkdir_p localdir unless File.exist?(localdir)
@@ -132,7 +133,7 @@ class FtpSync
   
   # Push a supplied list of files from the local path into the remote ftp path
   def push_files(localpath, remotepath, filelist)
-    connect!
+    if @connection.closed? then connect! end
     
     remote_paths = filelist.map {|f| File.dirname(f) }.uniq.reject{|p| p == '.' }
     create_remote_paths(remotepath, remote_paths)
@@ -146,7 +147,7 @@ class FtpSync
   
   # Remove listed files from the FTP server
   def remove_files(basepath, filelist)
-    connect!
+    if @connection.closed? then connect! end
     
     filelist.each do |f| 
       begin
@@ -165,10 +166,20 @@ class FtpSync
     @ignore && @ignore.ignore?(path)
   end
   
+  # Custom get method for retrieving active/passive mode of ftp connection.
+  # Introduced for backword compatibility.
+  def passive
+    @connection.passive
+  end
+  
+  # Custom set method for setting active/passive mode of ftp connection.
+  # Introduced for backword compatibility.
+  def passive=(passive)
+    @connection.passive = passive
+  end
+  
   private
     def connect!
-      @connection = Net::FTP.new(@server)
-      @connection.passive = @passive
       @connection.login(@user, @password)
       log "Opened connection to #{@server}"
     end
